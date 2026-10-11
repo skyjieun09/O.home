@@ -651,14 +651,35 @@ export function ApplyWidget({ conf }: { conf: WidgetConf }) {
   );
 }
 
-/* ---------- CALENDAR (월간 달력 — 스케줄러 일정이 있는 날에 점 표시) ---------- */
-export function CalendarWidget() {
+/* ---------- CALENDAR (월간 달력 — 스케줄러 일정이 있는 날에 점 표시) ----------
+   글씨색·배경색·배경 불투명도는 편집모드 우클릭 「설정」에서 (비워 두면 기본 모양 그대로). */
+export function CalendarWidget({ conf }: { conf: WidgetConf }) {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
+  const { updateWidget } = useMainStore();
   const { st } = useSched();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());   // 0~11
+
+  type CalStyle = { color?: string; bgColor?: string; bgOpacity?: number };
+  const s = conf.settings as CalStyle;
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<CalStyle>({});
+  useEditEvent(conf.id, () => { setDraft({ color: s.color, bgColor: s.bgColor, bgOpacity: s.bgOpacity }); setOpen(true); });
+
+  // #rrggbb + 불투명도(0~100) → rgba 색
+  const toRgba = (hex: string, pct: number) => {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const n = parseInt(full.slice(0, 6), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${pct / 100})`;
+  };
+  // 설정한 적이 없으면 기존 패널 모양 그대로
+  const panelStyle: React.CSSProperties = {};
+  if (s.bgOpacity != null) panelStyle.background = toRgba(s.bgColor ?? '#ffffff', s.bgOpacity);
+  if (s.color) panelStyle.color = s.color;
+  const tc: React.CSSProperties | undefined = s.color ? { color: s.color } : undefined;
 
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
@@ -687,14 +708,14 @@ export function CalendarWidget() {
     d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
 
   return (
-    <div className="panel widget">
-      <h4>
-        CALENDAR <span className="more" onClick={() => router.push('/cal')}>일정 ›</span>
+    <div className="panel widget" style={panelStyle}>
+      <h4 style={tc}>
+        CALENDAR <span className="more" style={tc} onClick={() => router.push('/cal')}>일정 ›</span>
       </h4>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px' }}>
-        <button onClick={goPrev}>◀</button>
+        <button style={{ color: 'inherit' }} onClick={goPrev}>◀</button>
         <b style={{ fontSize: 12 }}>{year}년 {month + 1}월</b>
-        <button onClick={goNext}>▶</button>
+        <button style={{ color: 'inherit' }} onClick={goNext}>▶</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', gap: 2, fontSize: 11 }}>
         {weekNames.map(w => <div key={w} style={{ fontWeight: 'bold' }}>{w}</div>)}
@@ -708,6 +729,36 @@ export function CalendarWidget() {
           </div>
         ))}
       </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} small title="달력 위젯"
+        desc="글씨색 · 배경색 · 배경 불투명도 — 100%는 불투명, 0%는 완전 투명 (건드리지 않으면 기본 모양)"
+        actions={<>
+          <button className="btn btn-ghost" onClick={() => setOpen(false)}>CANCEL</button>
+          <button className="btn btn-ghost" onClick={() => {
+            updateWidget(conf.id, { settings: { ...conf.settings, color: undefined, bgColor: undefined, bgOpacity: undefined } }, { persist: true });
+            setOpen(false);
+          }}>기본값으로</button>
+          <button className="btn btn-dark" onClick={() => {
+            updateWidget(conf.id, { settings: { ...conf.settings, ...draft } }, { persist: true });
+            setOpen(false);
+          }}>SAVE</button>
+        </>}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">글씨색</span>
+            <ColorField value={draft.color ?? '#3a3f47'} onChange={hex => setDraft(d => ({ ...d, color: hex }))} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">배경색</span>
+            <ColorField value={draft.bgColor ?? '#ffffff'} onChange={hex => setDraft(d => ({ ...d, bgColor: hex }))} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">배경 불투명도</span>
+            <KStep value={draft.bgOpacity ?? 100} min={0} max={100} step={5} suffix="%"
+              onChange={v => setDraft(d => ({ ...d, bgOpacity: v }))} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -727,7 +778,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'deco': return <DecoWidget conf={conf} />;
     case 'memoboard': return <MemoBoardWidget />;
     case 'apply': return <ApplyWidget conf={conf} />;
-    case 'calendar': return <CalendarWidget />;
+    case 'calendar': return <CalendarWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
