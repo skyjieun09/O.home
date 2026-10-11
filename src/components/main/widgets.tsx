@@ -651,6 +651,67 @@ export function ApplyWidget({ conf }: { conf: WidgetConf }) {
   );
 }
 
+/* ---------- CALENDAR (월간 달력 — 스케줄러 일정이 있는 날에 점 표시) ---------- */
+export function CalendarWidget() {
+  const router = useRouter();
+  const { user, isAdmin } = useAuth();
+  const { st } = useSched();
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());   // 0~11
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+  const weekNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= lastDate; d++) cells.push(d);
+
+  // 이 달에 일정이 있는 날짜 모으기 (매년 반복 일정 포함)
+  const eventDays = new Set<number>();
+  st.events
+    .filter(e => isAdmin || e.visibility === 'public' || (e.visibility === 'member' && !!user))
+    .forEach(e => {
+      const [y, m, d] = e.start.split('-').map(Number);
+      if (m - 1 !== month) return;
+      if (y === year || e.repeat === 'yearly') eventDays.add(d);
+    });
+
+  const goPrev = () => {
+    if (month === 0) { setYear(year - 1); setMonth(11); } else setMonth(month - 1);
+  };
+  const goNext = () => {
+    if (month === 11) { setYear(year + 1); setMonth(0); } else setMonth(month + 1);
+  };
+  const isToday = (d: number) =>
+    d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
+
+  return (
+    <div className="panel widget">
+      <h4>
+        CALENDAR <span className="more" onClick={() => router.push('/cal')}>일정 ›</span>
+      </h4>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px' }}>
+        <button onClick={goPrev}>◀</button>
+        <b style={{ fontSize: 12 }}>{year}년 {month + 1}월</b>
+        <button onClick={goNext}>▶</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', gap: 2, fontSize: 11 }}>
+        {weekNames.map(w => <div key={w} style={{ fontWeight: 'bold' }}>{w}</div>)}
+        {cells.map((d, i) => (
+          <div key={i} style={{
+            padding: '3px 0', borderRadius: 6,
+            border: d && isToday(d) ? '1px solid currentColor' : '1px solid transparent',
+          }}>
+            {d ?? ''}
+            <div style={{ height: 6, fontSize: 7, lineHeight: '6px' }}>{d && eventDays.has(d) ? '●' : ''}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- 타입 → 렌더러 ---------- */
 export function renderWidget(conf: WidgetConf) {
   switch (conf.type) {
@@ -666,6 +727,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'deco': return <DecoWidget conf={conf} />;
     case 'memoboard': return <MemoBoardWidget />;
     case 'apply': return <ApplyWidget conf={conf} />;
+    case 'calendar': return <CalendarWidget />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
