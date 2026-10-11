@@ -98,16 +98,54 @@ export async function createSupabaseBackend(
       return error ? { ok: false, error: error.message } : { ok: true };
     },
 
+    
     async updateProfile(patch) {
       const { data } = await sb.auth.getUser();
-      if (!data.user) return { ok: false, error: '로그인이 필요합니다.' };
-      const row: Record<string, unknown> = { id: data.user.id };
-      if (patch.nickname !== undefined) row.nickname = patch.nickname;
-      if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
-      if (patch.avatarColor !== undefined) row.avatar_color = patch.avatarColor;
-      const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
-      return error ? { ok: false, error: error.message } : { ok: true };
+      if (!data.user) {
+        return { ok: false, error: '로그인이 필요합니다.' };
+      }
+
+      const { data: profile, error: readError } = await sb
+        .from('profiles')
+        .select('nickname')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      if (readError) {
+        return { ok: false, error: readError.message };
+      }
+
+      const nickname =
+        patch.nickname?.trim() ||
+        profile?.nickname ||
+        (typeof data.user.user_metadata?.nickname === 'string'
+          ? data.user.user_metadata.nickname.trim()
+          : '') ||
+        data.user.email ||
+        'user';
+
+      const row: Record<string, unknown> = {
+        id: data.user.id,
+        nickname,
+      };
+
+      if (patch.avatarUrl !== undefined) {
+        row.avatar_url = patch.avatarUrl;
+      }
+
+      if (patch.avatarColor !== undefined) {
+        row.avatar_color = patch.avatarColor;
+      }
+
+      const { error } = await sb
+        .from('profiles')
+        .upsert(row, { onConflict: 'id' });
+
+      return error
+        ? { ok: false, error: error.message }
+        : { ok: true };
     },
+
 
     // Supabase는 스키마의 트리거가 첫 가입자를 관리자로 만들어 준다 — 추가 작업 없음
     async claimOwner() { return { ok: true }; },
