@@ -3096,7 +3096,7 @@ function FontRow({ f }: { f: FontDef }) {
 
   return (
     <div className="set-row">
-      <div className="l" style={{ minWidth: 0 }}>
+      <div className="l" style={{ minWidth: 0, flexShrink: 1 }}>
         {/* 미리보기는 페어 반영 스택 — 영문 폰트+한글 페어면 한글이 페어 폰트로 보임 (v1.9) */}
         {/* familyOf가 페어까지 합쳐 주고 var(--serif) 같은 별칭도 원본 스택으로 풀어 준다 (v2.0) */}
         <b style={{ fontFamily: familyOf(f.id), fontSize: 15 }}>{f.name} — 가나다 ABC 123</b>
