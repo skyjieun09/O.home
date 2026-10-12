@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { TextStyle, FontFamily, FontSize, Color } from '@tiptap/extension-text-style';
 import { KSelect } from '@/components/ui/Kit';
+import { useFonts } from '@/lib/fontStore';
 import { putBlob } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
 
@@ -29,17 +30,9 @@ function TBtn({ on, label, title, onClick }: { on?: boolean; label: React.ReactN
   );
 }
 
-// 글꼴·글자 크기 선택 목록 (기본 = 지정한 글꼴/크기를 지우고 원래대로)
+// 글자 크기 선택 목록 (기본 = 지정한 크기를 지우고 원래대로)
+// 글꼴 목록은 사이트의 폰트 라이브러리(환경설정 > 디자인)에서 자동으로 가져온다
 const DEFAULT = '__default';
-const FONT_OPTIONS = [
-  { value: DEFAULT, label: '기본 글꼴' },
-  { value: "'Nanum Myeongjo', serif", label: '나눔명조' },
-  { value: "'Gowun Batang', serif", label: '고운바탕' },
-  { value: "'Noto Serif KR', serif", label: '본명조' },
-  { value: "'Nanum Gothic', sans-serif", label: '나눔고딕' },
-  { value: "'Gowun Dodum', sans-serif", label: '고운돋움' },
-  { value: "'Nanum Pen Script', cursive", label: '나눔손글씨 펜' },
-];
 const SIZE_OPTIONS = [
   { value: DEFAULT, label: '기본 크기' },
   ...[12, 14, 16, 18, 20, 24, 28, 32].map(n => ({ value: `${n}px`, label: `${n}` })),
@@ -51,6 +44,7 @@ export function RichEditor({ value, onChange, placeholder }: {
   placeholder?: string;
 }) {
   const toast = useToast();
+  const { fonts, familyOf } = useFonts();
   const fileRef = useRef<HTMLInputElement>(null);
   const colorRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -73,6 +67,11 @@ export function RichEditor({ value, onChange, placeholder }: {
   }, [value, editor]);
 
   if (!editor) return <div className="re-wrap" style={{ minHeight: 200 }} />;
+
+  const fontOptions = [
+    { value: DEFAULT, label: '기본 글꼴' },
+    ...fonts.map(f => ({ value: f.id, label: f.name })),
+  ];
 
   /* 이미지는 **올려서** 넣는다 (v2.0 사용자 요청 — 예전엔 URL을 직접 적게 했다).
      다른 이미지들과 같은 경로(putBlob)를 타므로 서버 모드면 저장소에 올라가고 공개 주소가 나온다.
@@ -107,10 +106,11 @@ export function RichEditor({ value, onChange, placeholder }: {
         <TBtn title="소제목" label="H3" on={editor.isActive('heading', { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
         <span className="re-sep" />
-        <KSelect minWidth={110} value="" placeholder="글꼴" options={FONT_OPTIONS}
+        <KSelect minWidth={130} value="" placeholder="글꼴" options={fontOptions}
           onChange={v => {
-            if (v === DEFAULT) editor.chain().focus().unsetFontFamily().run();
-            else editor.chain().focus().setFontFamily(v).run();
+            if (v === DEFAULT) { editor.chain().focus().unsetFontFamily().run(); return; }
+            const fam = familyOf(v);
+            if (fam) editor.chain().focus().setFontFamily(fam).run();
           }} />
         <KSelect minWidth={80} value="" placeholder="크기" options={SIZE_OPTIONS}
           onChange={v => {
