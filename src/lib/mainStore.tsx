@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 // 메인 위젯 시스템 + 편집모드 상태 (기획서 4.0)
 // 저장소: localStorage → 추후 Supabase site_settings 로 이전
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -59,7 +59,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
 };
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
-export const MULTI_TYPES: WidgetType[] = [ freetext', 'deco', 'banner', 'shape' ];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'shape'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {
