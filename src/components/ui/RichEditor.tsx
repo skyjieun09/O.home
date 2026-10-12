@@ -5,6 +5,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style';
+import { KSelect } from '@/components/ui/Kit';
 import { putBlob } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
 
@@ -27,6 +29,22 @@ function TBtn({ on, label, title, onClick }: { on?: boolean; label: React.ReactN
   );
 }
 
+// 글꼴·글자 크기 선택 목록 (기본 = 지정한 글꼴/크기를 지우고 원래대로)
+const DEFAULT = '__default';
+const FONT_OPTIONS = [
+  { value: DEFAULT, label: '기본 글꼴' },
+  { value: "'Nanum Myeongjo', serif", label: '나눔명조' },
+  { value: "'Gowun Batang', serif", label: '고운바탕' },
+  { value: "'Noto Serif KR', serif", label: '본명조' },
+  { value: "'Nanum Gothic', sans-serif", label: '나눔고딕' },
+  { value: "'Gowun Dodum', sans-serif", label: '고운돋움' },
+  { value: "'Nanum Pen Script', cursive", label: '나눔손글씨 펜' },
+];
+const SIZE_OPTIONS = [
+  { value: DEFAULT, label: '기본 크기' },
+  ...[12, 14, 16, 18, 20, 24, 28, 32].map(n => ({ value: `${n}px`, label: `${n}` })),
+];
+
 export function RichEditor({ value, onChange, placeholder }: {
   value: string;
   onChange: (html: string) => void;
@@ -36,7 +54,7 @@ export function RichEditor({ value, onChange, placeholder }: {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [StarterKit, Image, TextStyle, FontFamily, FontSize],
     content: value || '<p></p>',
     immediatelyRender: false,
     editorProps: {
@@ -87,6 +105,17 @@ export function RichEditor({ value, onChange, placeholder }: {
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
         <TBtn title="소제목" label="H3" on={editor.isActive('heading', { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
+        <span className="re-sep" />
+        <KSelect minWidth={110} value="" placeholder="글꼴" options={FONT_OPTIONS}
+          onChange={v => {
+            if (v === DEFAULT) editor.chain().focus().unsetFontFamily().run();
+            else editor.chain().focus().setFontFamily(v).run();
+          }} />
+        <KSelect minWidth={80} value="" placeholder="크기" options={SIZE_OPTIONS}
+          onChange={v => {
+            if (v === DEFAULT) editor.chain().focus().unsetFontSize().run();
+            else editor.chain().focus().setFontSize(v).run();
+          }} />
         <span className="re-sep" />
         <TBtn title="글머리 목록" label="•≡" on={editor.isActive('bulletList')}
           onClick={() => editor.chain().focus().toggleBulletList().run()} />
