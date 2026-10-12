@@ -763,6 +763,131 @@ export function CalendarWidget({ conf }: { conf: WidgetConf }) {
   );
 }
 
+/* ---------- 도형 (선·점선·네모·동그라미 장식) ----------
+   패널 없이 모양만 — 선 종류·굵기·색을 편집모드 우클릭 「설정」에서 고른다. */
+type ShapeKind = 'line-h' | 'line-v' | 'rect' | 'circle';
+type ShapeLine = 'solid' | 'dashed' | 'dotted' | 'double';
+interface ShapeStyle {
+  shape?: ShapeKind; lineStyle?: ShapeLine; thickness?: number;
+  color?: string; fillColor?: string; fillOpacity?: number; radius?: number;
+}
+
+// #rrggbb + 불투명도(0~100) → rgba 색
+function shapeRgba(hex: string, pct: number) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(full.slice(0, 6), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${pct / 100})`;
+}
+
+export function ShapeWidget({ conf }: { conf: WidgetConf }) {
+  const { updateWidget } = useMainStore();
+  const s = conf.settings as ShapeStyle;
+  const shape = s.shape ?? 'rect';
+  const lineStyle = s.lineStyle ?? 'dashed';
+  const thickness = s.thickness ?? 2;
+  const color = s.color ?? '#ffffff';
+  const fillColor = s.fillColor ?? '#ffffff';
+  const fillOpacity = s.fillOpacity ?? 0;
+  const radius = s.radius ?? 12;
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<ShapeStyle>({});
+  useEditEvent(conf.id, () => {
+    setDraft({ shape, lineStyle, thickness, color, fillColor, fillOpacity, radius });
+    setOpen(true);
+  });
+
+  const border = `${thickness}px ${lineStyle} ${color}`;
+  const box: React.CSSProperties = { width: '100%', height: '100%', boxSizing: 'border-box' };
+  let body: React.ReactNode;
+  if (shape === 'line-h') {
+    body = <div style={{ ...box, display: 'flex', alignItems: 'center' }}><div style={{ width: '100%', borderTop: border }} /></div>;
+  } else if (shape === 'line-v') {
+    body = <div style={{ ...box, display: 'flex', justifyContent: 'center' }}><div style={{ height: '100%', borderLeft: border }} /></div>;
+  } else {
+    body = (
+      <div style={{
+        ...box, border,
+        borderRadius: shape === 'circle' ? '50%' : radius,
+        background: fillOpacity > 0 ? shapeRgba(fillColor, fillOpacity) : 'transparent',
+      }} />
+    );
+  }
+
+  return (
+    <div style={{ width: '100%', height: '100%', minHeight: 12 }}>
+      {body}
+      <Modal open={open} onClose={() => setOpen(false)} small title="도형"
+        desc="선 · 점선 · 네모 · 동그라미 — 크기와 위치는 편집모드에서 드래그, 다른 위젯 뒤로 보내려면 우클릭 > 맨아래로"
+        actions={<>
+          <button className="btn btn-ghost" onClick={() => setOpen(false)}>CANCEL</button>
+          <button className="btn btn-dark" onClick={() => {
+            const patch: Partial<WidgetConf> = { settings: { ...conf.settings, ...draft } };
+            // 선은 얇게 쓰는 게 보통이라, 처음의 큰 상자를 얇게 줄여 준다
+            if (draft.shape === 'line-h' && (conf.h ?? 0) > 40) patch.h = 24;
+            if (draft.shape === 'line-v' && (conf.w ?? 0) > 40) patch.w = 24;
+            updateWidget(conf.id, patch, { persist: true });
+            setOpen(false);
+          }}>SAVE</button>
+        </>}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">모양</span>
+            <KSelect minWidth={150} value={draft.shape ?? 'rect'}
+              onChange={v => setDraft(d => ({ ...d, shape: v as ShapeKind }))}
+              options={[
+                { value: 'line-h', label: '가로선' },
+                { value: 'line-v', label: '세로선' },
+                { value: 'rect', label: '네모' },
+                { value: 'circle', label: '동그라미' },
+              ]} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">선 종류</span>
+            <KSelect minWidth={150} value={draft.lineStyle ?? 'dashed'}
+              onChange={v => setDraft(d => ({ ...d, lineStyle: v as ShapeLine }))}
+              options={[
+                { value: 'solid', label: '실선' },
+                { value: 'dashed', label: '파선 (- - -)' },
+                { value: 'dotted', label: '점선 (· · ·)' },
+                { value: 'double', label: '이중선 (굵기 3 이상)' },
+              ]} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">굵기</span>
+            <KStep value={draft.thickness ?? 2} min={1} max={20} step={1} suffix="px"
+              onChange={v => setDraft(d => ({ ...d, thickness: v }))} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span className="cp-lb">선 색</span>
+            <ColorField value={draft.color ?? '#ffffff'} onChange={hex => setDraft(d => ({ ...d, color: hex }))} />
+          </div>
+          {(draft.shape === 'rect' || draft.shape === 'circle' || draft.shape == null) && (
+            <>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span className="cp-lb">안쪽 색</span>
+                <ColorField value={draft.fillColor ?? '#ffffff'} onChange={hex => setDraft(d => ({ ...d, fillColor: hex }))} />
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span className="cp-lb">안쪽 불투명도</span>
+                <KStep value={draft.fillOpacity ?? 0} min={0} max={100} step={5} suffix="%"
+                  onChange={v => setDraft(d => ({ ...d, fillOpacity: v }))} />
+              </div>
+            </>
+          )}
+          {(draft.shape === 'rect' || draft.shape == null) && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span className="cp-lb">모서리 둥글기</span>
+              <KStep value={draft.radius ?? 12} min={0} max={60} step={2} suffix="px"
+                onChange={v => setDraft(d => ({ ...d, radius: v }))} />
+            </div>
+          )}
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 /* ---------- 타입 → 렌더러 ---------- */
 export function renderWidget(conf: WidgetConf) {
   switch (conf.type) {
@@ -779,6 +904,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'memoboard': return <MemoBoardWidget />;
     case 'apply': return <ApplyWidget conf={conf} />;
     case 'calendar': return <CalendarWidget conf={conf} />;
+    case 'shape': return <ShapeWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
