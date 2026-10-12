@@ -5,7 +5,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle, FontFamily, FontSize, Color } from '@tiptap/extension-text-style';
+import { ParagraphLineHeight } from '@/lib/LineHeight';
 import { KSelect } from '@/components/ui/Kit';
 import { useFonts } from '@/lib/fontStore';
 import { putBlob } from '@/lib/blobStore';
@@ -38,6 +40,17 @@ const SIZE_OPTIONS = [
   ...[12, 14, 16, 18, 20, 24, 28, 32].map(n => ({ value: `${n}px`, label: `${n}` })),
 ];
 
+// 줄 간격 선택 목록 (기본 = 지정한 간격을 지우고 원래대로)
+const LINE_OPTIONS = [
+  { value: DEFAULT, label: '기본 간격' },
+  { value: '1', label: '1.0 (좁게)' },
+  { value: '1.3', label: '1.3' },
+  { value: '1.5', label: '1.5 (보통)' },
+  { value: '1.8', label: '1.8' },
+  { value: '2', label: '2.0 (넓게)' },
+  { value: '2.5', label: '2.5 (아주 넓게)' },
+];
+
 export function RichEditor({ value, onChange, placeholder }: {
   value: string;
   onChange: (html: string) => void;
@@ -49,7 +62,16 @@ export function RichEditor({ value, onChange, placeholder }: {
   const colorRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const editor = useEditor({
-    extensions: [StarterKit, Image, TextStyle, FontFamily, FontSize, Color],
+    extensions: [
+      StarterKit,
+      Image,
+      TextStyle,
+      FontFamily,
+      FontSize,
+      Color,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      ParagraphLineHeight,
+    ],
     content: value || '<p></p>',
     immediatelyRender: false,
     editorProps: {
@@ -124,6 +146,20 @@ export function RichEditor({ value, onChange, placeholder }: {
         <input ref={colorRef} type="color" defaultValue="#000000"
           style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
           onInput={e => editor.chain().focus().setColor((e.target as HTMLInputElement).value).run()} />
+        <span className="re-sep" />
+        {/* 글자 정렬 — 왼쪽 / 가운데 / 오른쪽 */}
+        <TBtn title="왼쪽 정렬" label="좌" on={editor.isActive({ textAlign: 'left' })}
+          onClick={() => editor.chain().focus().setTextAlign('left').run()} />
+        <TBtn title="가운데 정렬" label="중" on={editor.isActive({ textAlign: 'center' })}
+          onClick={() => editor.chain().focus().setTextAlign('center').run()} />
+        <TBtn title="오른쪽 정렬" label="우" on={editor.isActive({ textAlign: 'right' })}
+          onClick={() => editor.chain().focus().setTextAlign('right').run()} />
+        {/* 줄 간격 */}
+        <KSelect minWidth={100} value="" placeholder="줄 간격" options={LINE_OPTIONS}
+          onChange={v => {
+            if (v === DEFAULT) editor.chain().focus().unsetParagraphLineHeight().run();
+            else editor.chain().focus().setParagraphLineHeight(v).run();
+          }} />
         <span className="re-sep" />
         <TBtn title="글머리 목록" label="•≡" on={editor.isActive('bulletList')}
           onClick={() => editor.chain().focus().toggleBulletList().run()} />
