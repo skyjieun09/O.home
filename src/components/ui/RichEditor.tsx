@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
-import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style';
+import { TextStyle, FontFamily, FontSize, Color } from '@tiptap/extension-text-style';
 import { KSelect } from '@/components/ui/Kit';
 import { putBlob } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
@@ -52,9 +52,10 @@ export function RichEditor({ value, onChange, placeholder }: {
 }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const colorRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const editor = useEditor({
-    extensions: [StarterKit, Image, TextStyle, FontFamily, FontSize],
+    extensions: [StarterKit, Image, TextStyle, FontFamily, FontSize, Color],
     content: value || '<p></p>',
     immediatelyRender: false,
     editorProps: {
@@ -116,6 +117,13 @@ export function RichEditor({ value, onChange, placeholder }: {
             if (v === DEFAULT) editor.chain().focus().unsetFontSize().run();
             else editor.chain().focus().setFontSize(v).run();
           }} />
+        <TBtn title="글자 색" label={<b>A</b>}
+          onClick={() => colorRef.current?.click()} />
+        <TBtn title="글자 색 지우기" label="A×"
+          onClick={() => editor.chain().focus().unsetColor().run()} />
+        <input ref={colorRef} type="color" defaultValue="#000000"
+          style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+          onInput={e => editor.chain().focus().setColor((e.target as HTMLInputElement).value).run()} />
         <span className="re-sep" />
         <TBtn title="글머리 목록" label="•≡" on={editor.isActive('bulletList')}
           onClick={() => editor.chain().focus().toggleBulletList().run()} />
